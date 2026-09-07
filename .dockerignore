@@ -1,0 +1,16 @@
+# Frontend has its own build context (./frontend)
+frontend
+
+# Python / virtualenvs
+walletEnv
+venv
+env
+__pycache__
+*.pyc
+
+# Local dev / VCS / OS
+.git
+.vscode
+.idea
+.DS_Store
+*.sqlite3
