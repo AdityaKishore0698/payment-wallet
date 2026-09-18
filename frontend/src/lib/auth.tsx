@@ -18,6 +18,7 @@ type AuthState = {
   wallet: Wallet | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => void;
   refreshWallet: () => Promise<void>;
 };
@@ -100,6 +101,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [loadSession],
   );
 
+  const loginWithGoogle = useCallback(
+    async (idToken: string) => {
+      const res = await api.googleLogin(idToken);
+      localStorage.setItem(TOKEN_KEY, res.access_token);
+      await loadSession(res.access_token);
+    },
+    [loadSession],
+  );
+
   const refreshWallet = useCallback(async () => {
     if (!token || !user) return;
     try {
@@ -111,8 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, user, logout]);
 
   const value = useMemo<AuthState>(
-    () => ({ token, user, wallet, loading, login, logout, refreshWallet }),
-    [token, user, wallet, loading, login, logout, refreshWallet],
+    () => ({ token, user, wallet, loading, login, loginWithGoogle, logout, refreshWallet }),
+    [token, user, wallet, loading, login, loginWithGoogle, logout, refreshWallet],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

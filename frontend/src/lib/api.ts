@@ -118,6 +118,7 @@ export type User = {
   first_name: string;
   last_name: string | null;
   wallet_id: string | null;
+  auth_provider: "local" | "google";
   created_at: string;
 };
 
@@ -148,6 +149,15 @@ export type PaginatedTransactions = {
   next_cursor: string | null;
 };
 
+export type MonthlyAnalyticsPoint = {
+  month: string; // "YYYY-MM"
+  credit_total: string | number;
+  debit_total: string | number;
+  closing_balance: string | number;
+};
+
+export type AnalyticsResponse = { data: MonthlyAnalyticsPoint[] };
+
 // ---- Endpoints ------------------------------------------------------------------
 
 export const api = {
@@ -155,6 +165,12 @@ export const api = {
     request<TokenResponse>("/auth/login", {
       method: "POST",
       form: { username: email, password },
+    }),
+
+  googleLogin: (idToken: string) =>
+    request<TokenResponse>("/auth/google", {
+      method: "POST",
+      json: { id_token: idToken },
     }),
 
   register: (input: {
@@ -222,4 +238,10 @@ export const api = {
 
   contacts: (token: string, walletId: string) =>
     request<string[]>(`/transactions/${walletId}/contacts`, { token }),
+
+  analytics: (token: string, walletId: string, months = 6) =>
+    request<AnalyticsResponse>(
+      `/transactions/${walletId}/analytics?months=${months}`,
+      { token },
+    ),
 };

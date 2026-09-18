@@ -33,3 +33,7 @@ httpx
 
 celery
 redis
+
+# Google Sign-In: verifies the ID token the frontend gets from Google
+# Identity Services (see app/api/routes/auth.py: POST /auth/google).
+google-auth[requests]

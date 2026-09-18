@@ -5,10 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.core.database import get_db
-from app.crud.transaction import create_transaction, get_transactions_by_wallet, transfer_funds, get_contacts_by_wallet
+from app.crud.transaction import create_transaction, get_transactions_by_wallet, transfer_funds, get_contacts_by_wallet, get_wallet_analytics
 from app.crud.wallet import get_wallet_by_id
 from app.models.base import User
-from app.schemas.transaction import TransactionCreate, TransactionResponse, TransferCreate, AddFundsRequest, TransactionType, PaginatedTransactionResponse
+from app.schemas.transaction import TransactionCreate, TransactionResponse, TransferCreate, AddFundsRequest, TransactionType, PaginatedTransactionResponse, AnalyticsResponse
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -55,6 +55,17 @@ async def transaction_history(wallet_id: uuid.UUID, cursor: str | None = None, l
     if wallet.user_id!=current_user.id:
         raise HTTPException(403, detail="Not authorized to use this wallet")
     return await get_transactions_by_wallet(db, wallet_id, cursor, limit)
+
+@router.get("/{wallet_id}/analytics", response_model=AnalyticsResponse)
+async def transaction_analytics(wallet_id: uuid.UUID, months: int = 6, db: AsyncSession = db_dependency, current_user: User = current_user_dependency):
+    wallet = await get_wallet_by_id(db, wallet_id)
+    if not wallet:
+        raise HTTPException(404)
+    if wallet.user_id != current_user.id:
+        raise HTTPException(403, detail="Not authorized to use this wallet")
+    months = max(1, min(months, 24))
+    data = await get_wallet_analytics(db, wallet_id, wallet.balance, months)
+    return {"data": data}
 
 @router.get("/{wallet_id}/contacts", response_model=list[str])
 async def transaction_contacts(wallet_id: uuid.UUID, db: AsyncSession = db_dependency, current_user: User = current_user_dependency):

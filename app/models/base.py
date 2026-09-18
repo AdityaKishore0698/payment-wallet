@@ -34,8 +34,12 @@ class User(Base):
     last_name : Mapped[str] = mapped_column(String, nullable = True)
     created_at : Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     wallet : Mapped["Wallet"] = relationship(back_populates="user")
-    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
-    
+    # Nullable: Google-only accounts (auth_provider="google") never set a
+    # password. authentic_user()/change-password both guard against this.
+    hashed_password: Mapped[str | None] = mapped_column(String, nullable=True)
+    auth_provider: Mapped[str] = mapped_column(String, nullable=False, default="local", server_default="local")
+    google_sub: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
+
 class Wallet(Base):
     __tablename__ = 'wallets'
 

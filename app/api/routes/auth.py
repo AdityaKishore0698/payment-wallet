@@ -4,12 +4,15 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import GOOGLE_CLIENT_ID
 from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
-from app.crud.user import authentic_user, get_user_by_email
-from app.schemas.user import RecoverRequest, ResetPasswordRequest, ChangePasswordRequest
+from app.crud.user import authentic_user, get_or_create_google_user, get_user_by_email
+from app.schemas.user import GoogleAuthRequest, RecoverRequest, ResetPasswordRequest, ChangePasswordRequest
 from app.worker import send_recovery_email_task
 from app.models.base import User
 from app.api.dependencies import get_current_user
@@ -29,6 +32,32 @@ async def login(
     user = await authentic_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(401, "Incorrect email or password")
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/google")
+async def login_with_google(req: GoogleAuthRequest, db: AsyncSession = db_dependency):
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(503, "Google sign-in is not configured on this server")
+
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            req.id_token, google_requests.Request(), GOOGLE_CLIENT_ID
+        )
+    except ValueError:
+        # Covers a bad signature, wrong audience, expired token, etc.
+        raise HTTPException(401, "Invalid Google credential")
+
+    if not claims.get("email_verified", False):
+        raise HTTPException(401, "Google account email is not verified")
+
+    user = await get_or_create_google_user(
+        db,
+        google_sub=claims["sub"],
+        email=claims["email"],
+        first_name=claims.get("given_name") or claims.get("name") or "User",
+        last_name=claims.get("family_name"),
+    )
     access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -75,6 +104,8 @@ async def change_password(
     db: AsyncSession = db_dependency, 
     current_user: User = Depends(get_current_user)
 ):
+    if not current_user.hashed_password:
+        raise HTTPException(400, "This account signs in with Google and has no password to change")
     if not verify_password(req.old_password, current_user.hashed_password):
         raise HTTPException(400, "Incorrect old password")
         

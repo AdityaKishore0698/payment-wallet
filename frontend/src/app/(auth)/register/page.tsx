@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import { Alert, Button, Card, CardBody, Field, Input } from "@/components/ui";
+import { useAuth } from "@/lib/auth";
+import { Alert, Button, Card, CardBody, Field, Input, Spinner } from "@/components/ui";
+import { GoogleSignInButton, GOOGLE_SIGN_IN_ENABLED } from "@/components/GoogleSignInButton";
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const { loginWithGoogle } = useAuth();
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -15,6 +20,19 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [upiId, setUpiId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  async function onGoogleCredential(idToken: string) {
+    setError(null);
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle(idToken);
+      router.replace("/dashboard");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Google sign-up failed.");
+      setGoogleLoading(false);
+    }
+  }
 
   function update(key: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -78,6 +96,26 @@ export default function RegisterPage() {
         </div>
 
         {error && <Alert variant="error">{error}</Alert>}
+
+        {GOOGLE_SIGN_IN_ENABLED && (
+          <>
+            {googleLoading ? (
+              <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-500 dark:text-slate-400">
+                <Spinner className="h-4 w-4" /> Signing up with Google…
+              </div>
+            ) : (
+              <GoogleSignInButton onCredential={onGoogleCredential} />
+            )}
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                or
+              </span>
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+            </div>
+          </>
+        )}
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">

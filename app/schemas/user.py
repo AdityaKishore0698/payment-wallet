@@ -17,8 +17,14 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str | None = None
     wallet_id: uuid.UUID | None = None
+    auth_provider: str = "local"
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class GoogleAuthRequest(BaseModel):
+    # The ID token (a signed JWT) returned by Google Identity Services on the
+    # frontend — verified server-side before it's trusted for anything.
+    id_token: str
 
 class RecoverRequest(BaseModel):
     email: EmailStr

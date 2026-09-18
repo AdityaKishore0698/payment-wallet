@@ -77,34 +77,43 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Change password
           </h2>
-          {pwError && <Alert variant="error">{pwError}</Alert>}
-          {pwSuccess && <Alert variant="success">{pwSuccess}</Alert>}
-          <form onSubmit={changePassword} className="space-y-4">
-            <Field label="Current password" htmlFor="old_password">
-              <Input
-                id="old_password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-              />
-            </Field>
-            <Field label="New password" htmlFor="new_password">
-              <Input
-                id="new_password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </Field>
-            <Button type="submit" loading={pwLoading}>
-              Update password
-            </Button>
-          </form>
+          {user?.auth_provider === "google" ? (
+            <Alert variant="info">
+              This account signs in with Google, so there&apos;s no password
+              to change here.
+            </Alert>
+          ) : (
+            <>
+              {pwError && <Alert variant="error">{pwError}</Alert>}
+              {pwSuccess && <Alert variant="success">{pwSuccess}</Alert>}
+              <form onSubmit={changePassword} className="space-y-4">
+                <Field label="Current password" htmlFor="old_password">
+                  <Input
+                    id="old_password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                  />
+                </Field>
+                <Field label="New password" htmlFor="new_password">
+                  <Input
+                    id="new_password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </Field>
+                <Button type="submit" loading={pwLoading}>
+                  Update password
+                </Button>
+              </form>
+            </>
+          )}
         </CardBody>
       </Card>
 

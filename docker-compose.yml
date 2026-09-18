@@ -47,6 +47,9 @@ services:
       DATABASE_URL: postgresql+psycopg_async://postgres:postgres@db:5432/wallet_db
       REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost
+      # Empty by default: /auth/google refuses requests until this is set to a
+      # real Google Cloud OAuth client ID (see DEPLOYMENT.md).
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
       db:
         condition: service_healthy
@@ -82,6 +85,9 @@ services:
         # Baked into the client bundle. Requests go to /api, which Nginx routes
         # to the API container.
         NEXT_PUBLIC_API_URL: /api
+        # Same client ID as the backend's GOOGLE_CLIENT_ID. Empty by default —
+        # the Google button just doesn't render until this is set.
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     ports:
       - "3000:3000"

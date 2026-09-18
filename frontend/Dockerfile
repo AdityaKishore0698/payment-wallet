@@ -13,6 +13,9 @@ COPY . .
 # behind Nginx; Vercel sets it to the absolute Render URL instead.
 ARG NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Optional: the Google Sign-In button simply doesn't render when this is unset.
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=""
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 RUN npm run build
 
 # ---- Runner ----

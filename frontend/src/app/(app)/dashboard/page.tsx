@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { api, type Transaction } from "@/lib/api";
+import { api, type MonthlyAnalyticsPoint, type Transaction } from "@/lib/api";
 import { Card, CardBody, Badge, Spinner } from "@/components/ui";
 import { TransferModal } from "@/components/TransferModal";
+import { BalanceAreaChart, SpendingBarChart } from "@/components/AnalyticsCharts";
 import { counterpartyLabel, formatCurrency, formatDateTime } from "@/lib/format";
 
 export default function DashboardPage() {
   const { user, wallet, token, refreshWallet } = useAuth();
   const [recent, setRecent] = useState<Transaction[] | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [analytics, setAnalytics] = useState<MonthlyAnalyticsPoint[] | null>(null);
 
   const loadRecent = useCallback(() => {
     if (!token || !wallet) return;
@@ -21,6 +23,14 @@ export default function DashboardPage() {
       .catch(() => setRecent([]));
   }, [token, wallet]);
 
+  const loadAnalytics = useCallback(() => {
+    if (!token || !wallet) return;
+    api
+      .analytics(token, wallet.id, 6)
+      .then((res) => setAnalytics(res.data))
+      .catch(() => setAnalytics([]));
+  }, [token, wallet]);
+
   useEffect(() => {
     refreshWallet();
   }, [refreshWallet]);
@@ -28,6 +38,10 @@ export default function DashboardPage() {
   useEffect(() => {
     loadRecent();
   }, [loadRecent]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   return (
     <div className="space-y-8">
@@ -136,12 +150,51 @@ export default function DashboardPage() {
         </CardBody>
       </Card>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardBody>
+            <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Balance over time
+            </h2>
+            <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+              Closing balance at the end of each month
+            </p>
+            {analytics === null ? (
+              <div className="flex h-[260px] items-center justify-center">
+                <Spinner className="h-6 w-6 text-brand-600 dark:text-brand-400" />
+              </div>
+            ) : (
+              <BalanceAreaChart data={analytics} currency={wallet?.currency} />
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardBody>
+            <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Spending history
+            </h2>
+            <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+              Money in vs. money out, per month
+            </p>
+            {analytics === null ? (
+              <div className="flex h-[260px] items-center justify-center">
+                <Spinner className="h-6 w-6 text-brand-600 dark:text-brand-400" />
+              </div>
+            ) : (
+              <SpendingBarChart data={analytics} currency={wallet?.currency} />
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
       <TransferModal
         open={transferOpen}
         onClose={() => setTransferOpen(false)}
         onDone={() => {
           refreshWallet();
           loadRecent();
+          loadAnalytics();
         }}
       />
     </div>

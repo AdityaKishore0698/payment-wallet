@@ -35,3 +35,10 @@ FRONTEND_ORIGIN_REGEX: str | None = os.getenv("FRONTEND_ORIGIN_REGEX") or None
 SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-insecure-secret-change-me")
 ALGORITHM: str = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+# --- Google OAuth (Sign in with Google) ---
+# The OAuth client ID from Google Cloud Console → APIs & Services → Credentials.
+# Must match the value the frontend uses (NEXT_PUBLIC_GOOGLE_CLIENT_ID) — the
+# backend checks incoming ID tokens were issued *for* this client ID. Empty by
+# default: the /auth/google endpoint refuses requests until this is set.
+GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")

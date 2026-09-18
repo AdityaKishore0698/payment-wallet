@@ -40,3 +40,12 @@ class AddFundsRequest(BaseModel):
 class PaginatedTransactionResponse(BaseModel):
     data: list[TransactionResponse]
     next_cursor: str | None = None
+
+class MonthlyAnalyticsPoint(BaseModel):
+    month: str  # "YYYY-MM"
+    credit_total: Decimal
+    debit_total: Decimal
+    closing_balance: Decimal
+
+class AnalyticsResponse(BaseModel):
+    data: list[MonthlyAnalyticsPoint]
