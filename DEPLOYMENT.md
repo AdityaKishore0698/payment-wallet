@@ -58,9 +58,9 @@ Deploy order: **Supabase → Upstash → Render → Vercel → wire CORS → (op
 
    > **Already have a deployed database?** `create_all` only creates *missing*
    > tables — it never alters an existing one. If `users` already exists (i.e.
-   > you're adding Google Sign-In to a database that predates it), run
-   > `python alter_db_google_auth.py` once against it (point `DATABASE_URL` at
-   > it first). See Section 5.
+   > you're adding Google Sign-In to a database that predates it), apply the
+   > one-off migration **before** deploying the new code — see Section 5, step
+   > 7. Skipping the order breaks login for everyone.
 
 ---
 
@@ -162,7 +162,12 @@ skipping this section leaves the rest of the app unaffected.
 1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) →
    select or create a project → **Create Credentials → OAuth client ID**.
 2. If prompted, configure the **OAuth consent screen** first (External, add
-   your email as a test user if it stays in "Testing" mode).
+   your email as a test user if it stays in "Testing" mode). The **app name**
+   you set here is what users see on Google's sign-in page ("Sign in to
+   continue to *<app name>*") — and it belongs to the whole Cloud *project*,
+   not to an individual client. Use a project dedicated to this app; putting
+   the client in a project shared with another app shows that other app's
+   name.
 3. Application type: **Web application**.
 4. **Authorized JavaScript origins** — add every origin the frontend is served
    from:
@@ -178,16 +183,59 @@ skipping this section leaves the rest of the app unaffected.
    exchanges a code with Google.
 6. Set the **same value** in two places:
    - Render → `GOOGLE_CLIENT_ID`
-   - Vercel → `NEXT_PUBLIC_API_URL`'s neighbour, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
-     (Production **and** Preview, then redeploy — it's build-time inlined,
-     same rule as `NEXT_PUBLIC_API_URL`).
-7. **If this database was already deployed before this feature existed**, run
-   the one-off migration once against it (see the note in Section 1):
-   ```bash
-   DATABASE_URL=<your Supabase pooler URL> python alter_db_google_auth.py
+   - Vercel → `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (Production **and** Preview, then
+     redeploy — it's build-time inlined, same rule as `NEXT_PUBLIC_API_URL`).
+   - Local `npm run dev`: put it in `frontend/.env.local` (gitignored) and
+     restart the dev server, or the button silently won't render.
+7. **If this database was already deployed before this feature existed**,
+   apply the migration **before** the new backend code goes live (merge/deploy
+   only afterwards). The new `User` model selects the `auth_provider` and
+   `google_sub` columns, so deploying first makes every query that loads a
+   user — including plain email/password login — fail with `UndefinedColumn`.
+   A fresh database doesn't need this: `create_all` builds the new columns in
+   on first boot.
+
+   Render's free tier has no Shell, so run it from your machine or from
+   Supabase. Either way, first confirm you are targeting the **production**
+   project: the `postgres.<project-ref>` part of Render's `DATABASE_URL` must
+   match the project ref in your Supabase dashboard (Project Settings →
+   General). Never paste the URL or password into chat, tickets or commits.
+
+   **Option A — Supabase SQL Editor (no local network needed).** Optionally
+   check the current state first:
+   ```sql
+   SELECT column_name, is_nullable, column_default
+   FROM information_schema.columns
+   WHERE table_name = 'users'
+     AND column_name IN ('hashed_password', 'auth_provider', 'google_sub');
    ```
-   A fresh database doesn't need this — `create_all` builds the new columns
-   in on first boot.
+   Then run the four statements — the same ones, in the same order, as
+   `alter_db_google_auth.py` — inside one transaction:
+   ```sql
+   BEGIN;
+
+   ALTER TABLE users ALTER COLUMN hashed_password DROP NOT NULL;
+   ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR NOT NULL DEFAULT 'local';
+   ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR;
+   ALTER TABLE users ADD CONSTRAINT users_google_sub_key UNIQUE (google_sub);
+
+   COMMIT;
+   ```
+   > The editor runs a multi-statement paste as one all-or-nothing batch. On a
+   > *second* run the `ADD CONSTRAINT` (Postgres has no `IF NOT EXISTS` for it)
+   > errors and the whole batch rolls back — harmless, it just means the
+   > migration was already applied. The Python script instead prints `SKIP`
+   > for that line and carries on.
+
+   **Option B — the script, from your machine** (uses the app's own engine, so
+   the pooler-safe settings apply automatically):
+   ```bash
+   DATABASE_URL='<the exact pooler URI from Render>' python alter_db_google_auth.py
+   ```
+   Expect four `OK` lines on the first run. If it hangs with `could not
+   receive data from server: Operation timed out` even though `nc -vz <host>
+   6543` succeeds, that's a network-path problem (VPN / MTU / IPv4-vs-IPv6),
+   not a code problem — use Option A instead.
 8. Verify: open the Vercel URL, the login/register pages now show a
    **Continue with Google** button; signing in creates (or logs into) an
    account the same way email/password does, including the ₹10,000 starter
@@ -277,3 +325,7 @@ export `GOOGLE_CLIENT_ID` in your shell before `docker compose up` (both the
 | `POST /auth/google` returns `503 Google sign-in is not configured` | `GOOGLE_CLIENT_ID` unset on Render — set it and let the service redeploy. |
 | `POST /auth/google` returns `401 Invalid Google credential` | The client ID the token was issued for doesn't match `GOOGLE_CLIENT_ID` on the backend (frontend/backend values differ), or the current origin isn't in the OAuth client's **Authorized JavaScript origins** in Google Cloud Console. |
 | Google sign-in works locally but not on the deployed site | The deployed origin (Vercel URL, and `http://localhost` if testing via Nginx) needs to be added to **Authorized JavaScript origins** for the OAuth client — each origin must be listed explicitly. |
+| Google's sign-in page says "Sign in to continue to *<some other app>*" | The client ID belongs to a Google Cloud project whose consent screen has that name — either you copied another app's client ID, or this client lives in a shared project. Compare the number before the first `-` in the client ID with the project number in Cloud Console, and use a client from a project dedicated to this app. |
+| Every login/register 500s right after deploying the Google feature; logs show `UndefinedColumn` (`users.auth_provider` / `google_sub`) | The database migration wasn't applied before the deploy. Run it now (Section 5, step 7) — the app recovers immediately, no redeploy needed. |
+| `alter_db_google_auth.py` times out (`could not receive data from server`) though `nc -vz` to the pooler succeeds | `nc` only tests the TCP handshake; the Postgres/TLS exchange is being dropped on your network (VPN, MTU, IPv4/IPv6 path). Try another network, or apply the SQL through the Supabase SQL Editor (Section 5, Option A). |
+| The Google button renders but is the wrong width or has cropped borders | It is Google's own iframe: only the `renderButton` options and our wrapper can change it (see `GoogleSignInButton.tsx`). No custom colours are possible; the app uses the `outline` theme. |
