@@ -4,15 +4,15 @@ A highly scalable, asynchronous digital wallet application that supports secure 
 
 ## Screenshots
 
-<!-- Add your screenshots to a folder named "assets" in the repository, then replace these placeholder images! -->
+<p align="center"><img src="assets/dashboard.png" width="800" alt="Dashboard with balance, recent activity and analytics charts"/></p>
 
-| Login & Registration | Interactive Dashboard |
+| Dark Mode | Login |
 |:---:|:---:|
-| <img src="assets/login.png" width="400"/> | <img src="assets/dashboard.png" width="400"/> |
+| <img src="assets/dashboard-dark.png" width="400" alt="Dashboard in dark mode"/> | <img src="assets/login.png" width="400" alt="Login page with Sign in with Google"/> |
 
-| P2P Transfer & Add Funds | Transaction History |
+| P2P Transfer | Transaction History |
 |:---:|:---:|
-| <img src="assets/transfer.png" width="400"/> | <img src="assets/history.png" width="400"/> |
+| <img src="assets/transfer.png" width="400" alt="Transfer money by UPI ID"/> | <img src="assets/history.png" width="400" alt="Cursor-paginated transaction history"/> |
 
 ## System Architecture
 

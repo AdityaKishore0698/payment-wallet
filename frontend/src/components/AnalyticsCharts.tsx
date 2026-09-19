@@ -69,7 +69,7 @@ export function BalanceAreaChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          width={60}
+          width={72}
           tickFormatter={(v: number) => compactCurrency(v, currency)}
         />
         <Tooltip
@@ -115,7 +115,7 @@ export function SpendingBarChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          width={60}
+          width={72}
           tickFormatter={(v: number) => compactCurrency(v, currency)}
         />
         <Tooltip
