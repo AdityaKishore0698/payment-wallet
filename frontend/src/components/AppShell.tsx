@@ -118,10 +118,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  function buildSidebar(isCollapsed: boolean, opts: { onNavigate?: () => void; showCollapseToggle?: boolean } = {}) {
+  function buildSidebar(
+    isCollapsed: boolean,
+    opts: { onNavigate?: () => void; showCollapseToggle?: boolean; hideHeader?: boolean } = {},
+  ) {
     return (
       <div className={cn("flex h-full flex-col gap-6", isCollapsed ? "p-3" : "p-5")}>
-        <div className={cn("flex items-center", isCollapsed ? "flex-col gap-3" : "justify-between gap-2")}>
+        <div className={cn("flex items-center", isCollapsed ? "flex-col gap-3" : "justify-between gap-2", opts.hideHeader && "hidden")}>
           {isCollapsed ? <LogoMark /> : <Logo />}
           <div className={cn("flex items-center gap-1", isCollapsed && "flex-col")}>
             <ThemeToggle />
@@ -213,34 +216,65 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {buildSidebar(collapsed, { showCollapseToggle: true })}
       </aside>
 
-      {/* Mobile header */}
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden dark:border-slate-800 dark:bg-slate-900">
+      {/* Mobile header — fixed 64px (h-16) so the drawer below can start at top-16 and leave the toggle visible */}
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden dark:border-slate-800 dark:bg-slate-900">
         <Logo />
         <div className="flex items-center gap-1">
           <ThemeToggle />
           <button
             onClick={() => setMobileOpen((v) => !v)}
             className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-            aria-label="Toggle navigation"
+            aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={mobileOpen}
           >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
-            </svg>
+            <span className="relative block h-6 w-6" aria-hidden="true">
+              <span
+                className={cn(
+                  "absolute left-0.5 right-0.5 h-0.5 rounded-full bg-current transition-all duration-300 motion-reduce:transition-none",
+                  mobileOpen ? "top-[11px] rotate-45" : "top-[5px]",
+                )}
+              />
+              <span
+                className={cn(
+                  "absolute left-0.5 right-0.5 top-[11px] h-0.5 rounded-full bg-current transition-opacity duration-200 motion-reduce:transition-none",
+                  mobileOpen ? "opacity-0" : "opacity-100",
+                )}
+              />
+              <span
+                className={cn(
+                  "absolute left-0.5 right-0.5 h-0.5 rounded-full bg-current transition-all duration-300 motion-reduce:transition-none",
+                  mobileOpen ? "top-[11px] -rotate-45" : "top-[17px]",
+                )}
+              />
+            </span>
           </button>
         </div>
       </header>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="absolute inset-0 bg-slate-900/40"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-xl dark:bg-slate-900">
-            {buildSidebar(false, { onNavigate: () => setMobileOpen(false) })}
-          </div>
+      {/* Mobile drawer — always mounted so it can slide out as well as in; `invisible` (delayed by the transition) keeps it out of the tab order when closed */}
+      <div
+        aria-hidden={!mobileOpen}
+        className={cn(
+          "fixed inset-x-0 bottom-0 top-16 z-20 transition-[visibility] duration-300 lg:hidden",
+          mobileOpen ? "visible" : "invisible",
+        )}
+      >
+        <div
+          className={cn(
+            "absolute inset-0 bg-slate-900/40 transition-opacity duration-300 motion-reduce:transition-none",
+            mobileOpen ? "opacity-100" : "opacity-0",
+          )}
+          onClick={() => setMobileOpen(false)}
+        />
+        <div
+          className={cn(
+            "absolute left-0 top-0 h-full w-72 overflow-y-auto bg-white shadow-xl transition-transform duration-300 ease-out motion-reduce:transition-none dark:bg-slate-900",
+            mobileOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          {buildSidebar(false, { onNavigate: () => setMobileOpen(false), hideHeader: true })}
         </div>
-      )}
+      </div>
 
       <main className="p-4 sm:p-8">
         <div className="mx-auto max-w-4xl">{children}</div>
