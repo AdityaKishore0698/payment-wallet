@@ -2,12 +2,14 @@
 
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTheme } from "@/lib/theme";
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 /** Whether the pages should even offer a Google option (divider included). */
 export const GOOGLE_SIGN_IN_ENABLED = Boolean(CLIENT_ID);
+
+// Google's renderButton caps `width` at 400px.
+const MAX_GOOGLE_BUTTON_WIDTH = 400;
 
 type GoogleCredentialResponse = { credential: string };
 
@@ -32,6 +34,11 @@ declare global {
  * nothing if NEXT_PUBLIC_GOOGLE_CLIENT_ID isn't set, rather than showing a
  * button that would just fail — see DEPLOYMENT.md for the Google Cloud
  * Console setup this depends on.
+ *
+ * The button itself is Google's cross-origin iframe, so only the options
+ * passed to renderButton (and the size/clip of our wrapper) can change how it
+ * looks. Google offers no purple/custom colours; `outline` is the theme that
+ * mirrors our secondary button (white, thin border) in both light and dark.
  */
 export function GoogleSignInButton({
   onCredential,
@@ -39,29 +46,52 @@ export function GoogleSignInButton({
   onCredential: (idToken: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onCredentialRef = useRef(onCredential);
+  const renderedWidth = useRef(0);
   const [scriptReady, setScriptReady] = useState(false);
-  const { resolved } = useTheme();
 
-  const render = useCallback(() => {
-    if (!CLIENT_ID || !window.google || !containerRef.current) return;
+  useEffect(() => {
+    onCredentialRef.current = onCredential;
+  }, [onCredential]);
+
+  useEffect(() => {
+    if (!scriptReady || !CLIENT_ID || !window.google) return;
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID,
-      callback: (response) => onCredential(response.credential),
+      callback: (response) => onCredentialRef.current(response.credential),
     });
-    containerRef.current.innerHTML = "";
-    window.google.accounts.id.renderButton(containerRef.current, {
+  }, [scriptReady]);
+
+  const measure = () =>
+    Math.min(Math.round(containerRef.current?.offsetWidth ?? 0), MAX_GOOGLE_BUTTON_WIDTH);
+
+  const render = useCallback(() => {
+    const el = containerRef.current;
+    const width = measure();
+    if (!window.google || !el || !width) return;
+    renderedWidth.current = width;
+    el.innerHTML = "";
+    window.google.accounts.id.renderButton(el, {
       type: "standard",
-      theme: resolved === "dark" ? "filled_black" : "outline",
-      size: "large",
+      theme: "outline",
+      size: "large", // 40px tall — same as our primary Button
       shape: "rectangular",
       text: "continue_with",
       logo_alignment: "center",
-      width: 320,
+      // Google takes a pixel width, not "100%": match the (full-width) container.
+      width,
     });
-  }, [onCredential, resolved]);
+  }, []);
 
   useEffect(() => {
-    if (scriptReady) render();
+    const el = containerRef.current;
+    if (!scriptReady || !el) return;
+    render();
+    const observer = new ResizeObserver(() => {
+      if (measure() !== renderedWidth.current) render();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [scriptReady, render]);
 
   if (!CLIENT_ID) return null;
@@ -73,7 +103,8 @@ export function GoogleSignInButton({
         strategy="afterInteractive"
         onReady={() => setScriptReady(true)}
       />
-      <div ref={containerRef} className="flex justify-center" />
+      {/* Dark only: clip to our rounded-xl (also hides the iframe's opaque white backdrop corners); in light it would crop the outline border. */}
+      <div ref={containerRef} className="h-10 w-full dark:overflow-hidden dark:rounded-xl" />
     </>
   );
 }
