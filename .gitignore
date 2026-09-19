@@ -21,4 +21,5 @@ __pycache__/
 
 # Databases (if you use SQLite locally later)
 *.sqlite3
-*.dblearning.md
+*.db
+
