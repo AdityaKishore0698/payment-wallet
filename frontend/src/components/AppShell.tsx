@@ -212,7 +212,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
     >
       {/* Desktop sidebar — collapsible via the hamburger toggle at its top */}
-      <aside className="hidden border-r border-slate-200 bg-white lg:block dark:border-slate-800 dark:bg-slate-900">
+      <aside className="hidden border-r border-slate-200 bg-white lg:sticky lg:top-0 lg:block lg:h-screen lg:self-start lg:overflow-y-auto dark:border-slate-800 dark:bg-slate-900">
         {buildSidebar(collapsed, { showCollapseToggle: true })}
       </aside>
 
