@@ -158,3 +158,33 @@ test.describe("wallet operations", () => {
     await expect(page).toHaveURL(/\/dashboard$/);
   });
 });
+
+test.describe("recipient verification", () => {
+  test("a slow reply for an earlier ID never verifies the wrong recipient", async ({
+    page,
+    request,
+  }) => {
+    const sender = await createUser(request, { firstName: "Sender" });
+    const first = await createUser(request, { firstName: "First" });
+    const second = await createUser(request, { firstName: "Second" });
+
+    // Make the lookup for the first ID slower than the one for the second.
+    await page.route(`**/wallets/lookup/${encodeURIComponent(first.upiId)}`, async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    });
+
+    await loginViaUi(page, sender);
+    await page.goto("/transfer");
+    const box = page.getByLabel("Recipient UPI ID");
+
+    await box.fill(first.upiId);
+    await page.waitForTimeout(600); // the slow lookup for `first` is now in flight
+    await box.fill(second.upiId);
+
+    await expect(page.getByText(`Verified: ${second.firstName} User`)).toBeVisible();
+    await page.waitForTimeout(3000); // let the stale reply for `first` arrive
+    await expect(page.getByText(`Verified: ${second.firstName} User`)).toBeVisible();
+    await expect(page.getByText(`Verified: ${first.firstName} User`)).toHaveCount(0);
+  });
+});

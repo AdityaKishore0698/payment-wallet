@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 # backend when the URL is TLS.
 celery_app = Celery("wallet_tasks", broker=REDIS_URL, backend=REDIS_URL)
 celery_app.conf.broker_connection_retry_on_startup = True
+# A dedicated queue name, so another Celery app pointed at the same Redis can't
+# consume this app's jobs (both would otherwise share the default "celery" queue).
+celery_app.conf.task_default_queue = "wallet"
 
 if REDIS_URL.startswith("rediss://"):
     # Upstash presents a valid public certificate; verify it unless the URL

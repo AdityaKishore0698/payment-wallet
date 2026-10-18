@@ -27,6 +27,8 @@ export function TransferForm({
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+  // The ID currently being verified; replies for any other ID are stale and ignored.
+  const latestLookup = useRef("");
 
   useEffect(() => {
     if (!token || !wallet) return;
@@ -39,6 +41,7 @@ export function TransferForm({
   const runLookup = useCallback(
     (value: string) => {
       const trimmed = value.trim();
+      latestLookup.current = trimmed;
       if (!token || !trimmed) {
         setLookup({ status: "idle" });
         return;
@@ -53,22 +56,24 @@ export function TransferForm({
       setLookup({ status: "loading" });
       api
         .lookupUpi(token, trimmed)
-        .then((res) =>
+        .then((res) => {
+          if (latestLookup.current !== trimmed) return;
           setLookup({
             status: "ok",
             walletId: res.wallet_id,
             name: res.masked_name,
-          }),
-        )
-        .catch((err) =>
+          });
+        })
+        .catch((err) => {
+          if (latestLookup.current !== trimmed) return;
           setLookup({
             status: "error",
             message:
               err instanceof ApiError && err.status === 404
                 ? "No account found for that UPI ID."
                 : "Could not verify that UPI ID.",
-          }),
-        );
+          });
+        });
     },
     [token, user],
   );
@@ -77,11 +82,16 @@ export function TransferForm({
     setUpiId(value);
     setSuccess(null);
     setError(null);
+    // The previous verification no longer matches the input; Send stays
+    // disabled until this value has been verified.
+    latestLookup.current = value.trim();
+    setLookup({ status: "idle" });
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(() => runLookup(value), 400);
   }
 
   function selectContact(c: string) {
+    if (debounce.current) clearTimeout(debounce.current);
     setUpiId(c);
     runLookup(c);
   }
