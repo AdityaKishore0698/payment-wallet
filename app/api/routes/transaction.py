@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
@@ -48,7 +48,7 @@ async def add_funds(wallet_id: uuid.UUID, funds_in: AddFundsRequest, db: AsyncSe
         raise HTTPException(400, detail=str(e))
 
 @router.get("/{wallet_id}/history", response_model=PaginatedTransactionResponse)
-async def transaction_history(wallet_id: uuid.UUID, cursor: str | None = None, limit: int = 100, db: AsyncSession = db_dependency, current_user: User = current_user_dependency):
+async def transaction_history(wallet_id: uuid.UUID, cursor: str | None = None, limit: int = Query(100, ge=1, le=100), db: AsyncSession = db_dependency, current_user: User = current_user_dependency):
     wallet = await get_wallet_by_id(db, wallet_id)
     if not wallet:
         raise HTTPException(404)

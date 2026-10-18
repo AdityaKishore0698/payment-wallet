@@ -181,7 +181,7 @@ export const api = {
   }) => request<User>("/users/", { method: "POST", json: input }),
 
   recover: (email: string) =>
-    request<{ message: string; demo_token?: string }>("/auth/recover", {
+    request<{ message: string }>("/auth/recover", {
       method: "POST",
       json: { email },
     }),

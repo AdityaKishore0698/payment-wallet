@@ -71,11 +71,29 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg_async://postgres:postgres@db:5432/wallet_db
       REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy
+
+  # Local SMTP catcher: recovery emails land here instead of a real inbox.
+  # Web UI and API on http://localhost:8025 (the E2E tests read mail from it).
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   frontend:
     build:

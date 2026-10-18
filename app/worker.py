@@ -1,8 +1,20 @@
+import logging
+import smtplib
 import ssl
+from email.message import EmailMessage
 
 from celery import Celery
 
-from app.core.config import REDIS_URL
+from app.core.config import (
+    REDIS_URL,
+    SMTP_FROM,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_USERNAME,
+)
+
+logger = logging.getLogger(__name__)
 
 # Upstash (and most managed Redis) require TLS and therefore the ``rediss://``
 # scheme. Celery needs explicit SSL options for both the broker and the result
@@ -21,17 +33,26 @@ if REDIS_URL.startswith("rediss://"):
 
 
 @celery_app.task(name="send_recovery_email_task")
-def send_recovery_email_task(email: str, token: str):
-    """
-    Mock background task for sending emails.
-    In a real app, this would use SMTP or an API like SendGrid.
-    """
-    import time
-    # Simulate network delay
-    time.sleep(2)
-    print(f"========== EMAIL SENT ==========")
-    print(f"To: {email}")
-    print(f"Subject: Password Recovery")
-    print(f"Body: Your password reset token is: {token}")
-    print(f"================================")
+def send_recovery_email_task(email: str, token: str) -> bool:
+    """Email a password-recovery token over SMTP (Mailpit locally)."""
+    if not SMTP_HOST:
+        logger.warning("SMTP_HOST is not set; recovery email to %s was not sent", email)
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = "Reset your Digital Wallet password"
+    msg["From"] = SMTP_FROM
+    msg["To"] = email
+    msg.set_content(
+        "We received a request to reset your Digital Wallet password.\n\n"
+        f"Your recovery token is: {token}\n\n"
+        "Paste it on the reset page together with your new password. "
+        "If you didn't ask for this, you can ignore this email."
+    )
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:
+        if SMTP_USERNAME:
+            smtp.starttls()
+            smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+        smtp.send_message(msg)
     return True

@@ -15,7 +15,14 @@ from app.schemas.transaction import (
 
 
 async def create_transaction(db: AsyncSession, wallet_id: uuid.UUID, transaction_in: TransactionCreate):
-    wallet = await db.scalar(select(Wallet).with_for_update().where(Wallet.id == wallet_id))
+    # populate_existing: the route already loaded this wallet in the same session;
+    # without it SQLAlchemy keeps that stale copy instead of the freshly locked row.
+    wallet = await db.scalar(
+        select(Wallet)
+        .with_for_update()
+        .where(Wallet.id == wallet_id)
+        .execution_options(populate_existing=True)
+    )
     if not wallet:
         raise ValueError("Wallet not found")
     if transaction_in.type == TransactionType.CREDIT:
@@ -92,7 +99,15 @@ async def transfer_funds(db: AsyncSession, transfer_in: TransferCreate):
 
     wallet_ids = sorted([transfer_in.from_wallet_id, transfer_in.to_wallet_id])
     
-    stmt = select(Wallet).where(Wallet.id.in_(wallet_ids)).order_by(Wallet.id).with_for_update()
+    # populate_existing: use the locked rows' current balances, not copies loaded
+    # earlier in this request (e.g. by the route's ownership check).
+    stmt = (
+        select(Wallet)
+        .where(Wallet.id.in_(wallet_ids))
+        .order_by(Wallet.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     result = await db.scalars(stmt)
     wallets = result.all()
     

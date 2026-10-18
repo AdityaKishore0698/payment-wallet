@@ -33,7 +33,8 @@ class TransactionResponse(BaseModel):
 class TransferCreate(BaseModel):
     from_wallet_id: uuid.UUID
     to_wallet_id: uuid.UUID
-    amount: Decimal = Field(gt=0, description="Amount must be greater than zero")
+    # Same precision as the NUMERIC(10,2) columns, so the database never has to round.
+    amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2, description="Amount must be greater than zero")
 
 class AddFundsRequest(BaseModel):
     amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2, description="Amount must be greater than zero")

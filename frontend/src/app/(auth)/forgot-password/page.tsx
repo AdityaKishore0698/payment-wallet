@@ -11,7 +11,6 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [demoToken, setDemoToken] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -25,10 +24,6 @@ export default function ForgotPasswordPage() {
     try {
       const res = await api.recover(email);
       setMessage(res.message);
-      if (res.demo_token) {
-        setDemoToken(res.demo_token);
-        setToken(res.demo_token);
-      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not send token.");
     } finally {
@@ -67,12 +62,6 @@ export default function ForgotPasswordPage() {
 
         {error && <Alert variant="error">{error}</Alert>}
         {message && <Alert variant="info">{message}</Alert>}
-        {demoToken && (
-          <Alert variant="info">
-            Demo mode &mdash; your recovery token is{" "}
-            <span className="font-mono font-semibold break-all">{demoToken}</span>
-          </Alert>
-        )}
 
         <form onSubmit={sendToken} className="space-y-4">
           <Field label="Email" htmlFor="email">

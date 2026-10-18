@@ -42,3 +42,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 
 # backend checks incoming ID tokens were issued *for* this client ID. Empty by
 # default: the /auth/google endpoint refuses requests until this is set.
 GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+
+# --- Outgoing email (password recovery) ---
+# Locally this points at Mailpit (docker-compose). Unset = recovery emails are
+# not sent. Username/password switch on STARTTLS + login for real providers.
+SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+SMTP_PORT: int = int(os.getenv("SMTP_PORT", "1025"))
+SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM: str = os.getenv("SMTP_FROM", "Digital Wallet <no-reply@wallet.local>")

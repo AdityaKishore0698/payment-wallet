@@ -77,8 +77,9 @@ async def recover_password(req: RecoverRequest, db: AsyncSession = db_dependency
     except Exception as e:
         logger.warning(f"Could not send email to Celery queue (Redis might be down): {e}")
     
-    # For demo purposes, we also return the token in the response so the user can easily copy it from the UI
-    return {"message": "If that email is registered, a recovery token has been sent.", "demo_token": token}
+    # The token is delivered only out of band (the email task). Returning it here
+    # would let anyone who knows an email reset that account's password.
+    return {"message": "If that email is registered, a recovery token has been sent."}
 
 @router.post("/reset-password")
 async def reset_password(req: ResetPasswordRequest, db: AsyncSession = db_dependency):
