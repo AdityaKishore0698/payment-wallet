@@ -10,7 +10,11 @@ from app.models.base import Base
 TEST_DATABASE_URL = "postgresql+psycopg_async://postgres:postgres@localhost:5433/wallet_test_db"
 
 engine_test = create_async_engine(TEST_DATABASE_URL)
-TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine_test, class_=AsyncSession)
+# Same session settings as app/core/database.py: without expire_on_commit=False,
+# returning ORM objects after commit triggers lazy loads (MissingGreenlet).
+TestingSessionLocal = async_sessionmaker(
+    autoflush=False, bind=engine_test, class_=AsyncSession, expire_on_commit=False
+)
 
 @pytest.fixture(scope="session")
 def event_loop():
